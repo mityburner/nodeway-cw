@@ -8,7 +8,6 @@
     "nodeway",
     "microservice"
   ],
-  "author": "mityburner",
   "license": "MIT",
   "dependencies": {
     "mssql":"*",
