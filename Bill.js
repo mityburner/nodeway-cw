@@ -1,6 +1,7 @@
 const Nodeway = require('nodeway');
 const sql = require('mssql');
 const crypto = require('crypto');
+const util = require('util.js');
 
 class Bill extends Nodeway{
     constructor(uuid){
@@ -75,8 +76,99 @@ class Bill extends Nodeway{
             });
         });
 	}
-	cando(user, op, domain, period){
-        
+	cando(user, op, domain, period,cb){
+            if (op == "create" && period < 2) {
+            cb(new Error("最少注册两年"), null);
+            return;
+        }
+        let flag = "0";
+        let gprice = 0;  //组价格
+        let aprice = 0;  //代理商价格
+        let lenflag = ''; //词性，目前只有“商城”才有值；否则就是空；
+        let gcode = ''
+        let curtime = util.getFullDate();
+
+        this.conn.then(()=>{
+            let len = this.getdomainlen(domain);
+            let tld = domain.split(/\./)[1];
+
+            //首先得到组ID并检查是否代理商是否开通了此TLD
+            sql.query`select gcode from A_tblopentld where acode=${acode} and tld=${tld}`
+            .then(ret=>{
+                if(!ret){
+                    cb(new Error('系统中无此代理商账户或未开通此TLD'),null);
+                }else{
+                    gcode = ret[0].gcode;
+                }
+            });
+
+            //判断域名的词性（目前只有“商城”才有值；否则就是空；，但以后也许其它域名也有区分，所以按参数表都判断一下）
+            sql.query`select lenflag from R_domainlen where tld=${tld} and (minlen is null or minlen<=${len}) and (maxlen is null or maxlen>=${len})`
+            .then(ret=>{
+                if(ret) lenflag = ret[0].lenflag;
+            });
+        })
+        .then(()=>{
+            //检查操作的付费标志 表sys_dictionary中flag=1 是登记操作类型，其中 mark=1 表示一年收费，0为按年收费
+            sql.query`select id  from sys_dictionary where flag=1 and ennm=${optype} and mark='1' `
+            .then(ret=>{
+                if(ret) flag = '1';
+            });
+
+            //（首先取组价格）
+            sql.query`select price from R_tblprice where gid in (select gid from G_tblopentld where gcode=${gcode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
+            .then(ret=>{
+                if(!ret){
+                    cb(new Error('注册商级别或价格未登记'),null);
+                }else{
+                    gprice = ret[0].price;
+                }
+            });
+
+            //获得本代理商的价格
+            sql.query`select price from R_tblprice where gid in (select gid from G_tblopentld where acode=${acode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
+            .then(ret=>{
+                if(!ret){
+                    cb(new Error('代理商级别或价格未登记'),null);
+                }else{
+                    aprice = ret[0].price;
+                }
+            });
+        })
+        .then(()=>{
+            let gfee,fee;
+            if(op != "autorenew"){
+                if(flag == "0"){
+                    gfee = gprice * period * (-1);
+                    fee = aprice * period * (-1);
+                }else{
+                    gfee = gprice *  (-1);
+                    fee = aprice *  (-1);
+                }
+            }
+            //组余额
+            sql.query`select balance from G_tblgroup where gcode=${gcode} and balance+${gfee}>=0`
+            .then(ret=>{
+                if(!ret){
+                    cb(new Error('注册商余额不足'), null);
+                }
+            });
+            //代理商余额
+            sql.query`select balance from G_tblgroup where acode=${acode} and balance+${fee}>=0`
+            .then(ret=>{
+                if(!ret){
+                    cb(new Error('代理商余额不足'), null);
+                }
+            })
+        })
+        .then((){
+            cb(null, aprice);
+            this.emit('data', aprice);
+        })
+        .catch(err=>{
+            // sendEmail(err);
+            cb(err, null);
+        }); 
 	}
 	done(usr,op,domain,appID,registrant,opDate,price,period,exDate,oldID,uniID){
 
