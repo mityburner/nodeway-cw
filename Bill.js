@@ -84,7 +84,7 @@ class Bill extends Nodeway{
             let len = this.getdomainlen(domain);
             let tld = domain.split(/\./)[1];
 
-            sql.query`select gcode from A_tblopentld where acode=${acode} and tld=${tld}`
+            sql.query`select gcode from A_tblopentld where acode=${user} and tld=${tld}`
             .then(ret=>{
                 if(!ret.length){
                     cb(new Error('系统中无此代理商账户或未开通此TLD'), null);
