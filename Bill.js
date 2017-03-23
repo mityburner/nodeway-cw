@@ -1,9 +1,22 @@
 "use strict";
 
 const Nodeway = require('nodeway');
-const sql = require('mssql');
+const mssql = require('mssql');
 const crypto = require('crypto');
 const config = require('./Bill.json');
+
+var sql;
+function connect_mssql() {
+    mssql.connect(`mssql://${config.User}:${config.PWD}@${config.IP}/${config.DB}`);
+    mssql.on('error', connect_mssql);
+    sql = new mssql.Request();
+}
+function end_mssql(code) {
+    mssql.close();
+    console.log('Exit code:', code);
+}
+connect_mssql();
+process.on('exit', end_mssql);
 
 function fillAcl(userInfo, cb) {
     sql.query`select tld from A_tblopentld where acode=${userInfo.user} and CreateDomain=0`
@@ -33,7 +46,6 @@ function fillAcl(userInfo, cb) {
 class Bill extends Nodeway{
     constructor(uuid){
         super(uuid);
-        sql.connect(`mssql://${config.User}:${config.PWD}@${config.IP}/${config.DB}`);
     }
     login(clID, pass, cb){
         let userInfo = {};
