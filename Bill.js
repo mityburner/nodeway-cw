@@ -1,3 +1,5 @@
+"use strict";
+
 const Nodeway = require('nodeway');
 const sql = require('mssql');
 const crypto = require('crypto');
