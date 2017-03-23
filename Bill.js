@@ -1,11 +1,12 @@
 const Nodeway = require('nodeway');
 const sql = require('mssql');
 const crypto = require('crypto');
+const config = require('./Bill.json');
 
 class Bill extends Nodeway{
     constructor(uuid){
         super(uuid);
-        this.conn = sql.connect("mssql://User:PWD@IP/DB");
+        this.conn = sql.connect(`mssql://${config.User}:${config.PWD}@${config.IP}/${config.DB}`);
     }
     login(clID, pass, cb){
         let userInfo = {};
@@ -145,11 +146,11 @@ class Bill extends Nodeway{
             .catch(err=>{cb(err, null)});
         }).catch(err=>{cb(err, null)});
     }
-	
-	done(usr,op,domain,appID,registrant,opDate,price,period,exDate,oldID,uniID){
+    
+    done(usr,op,domain,appID,registrant,opDate,price,period,exDate,oldID,uniID){
 
-	}
-	getAgent(domain, cb){
+    }
+    getAgent(domain, cb){
         let len = this.getdomainlen(domain);
         let tld = domain.split(/\./)[1];
         let WhoisEx = {};
@@ -182,12 +183,12 @@ class Bill extends Nodeway{
         }
         return len;
     }
-	encrypt(pass){
+    encrypt(pass){
         let hash = crypto.createHash('md5').update(pass,'utf16le');
         let pwd = hash.digest('hex').split('').map((v,i)=>i%2 != 0? v+'-':v);
         return pwd.join('').toUpperCase().slice(0,-1);
     }
 }
 
-			   	    
+                       
 module.exports = Bill;
