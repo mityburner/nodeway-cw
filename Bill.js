@@ -1,71 +1,69 @@
+"use strict";
+
 const Nodeway = require('nodeway');
 const sql = require('mssql');
 const crypto = require('crypto');
 const config = require('./Bill.json');
 
+function fillAcl(userInfo, cb) {
+    sql.query`select tld from A_tblopentld where acode=${userInfo.user} and CreateDomain=0`
+       .then(tld=>{
+            userInfo.acl.CreateDomain = tld.map(t=>t.tld);
+            return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and DeleteDomain=0`
+        })
+       .then(tld=>{
+            userInfo.acl.DeleteDomain = tld.map(t=>t.tld);
+            return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and RenewDomain=0`
+        })
+       .then(tld=>{
+            userInfo.acl.RenewDomain = tld.map(t=>t.tld);
+            return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and TransferDomain=0`
+        })
+       .then(tld=>{
+            userInfo.acl.TransferDomain = tld.map(t=>t.tld);
+            return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and RestoreDomain=0`
+        })
+       .then(tld=>{
+            userInfo.acl.RestoreDomain = tld.map(t=>t.tld);
+            cb(null, userInfo);
+        })
+       .catch(cb);
+}
+
 class Bill extends Nodeway{
     constructor(uuid){
         super(uuid);
-        this.conn = sql.connect(`mssql://${config.User}:${config.PWD}@${config.IP}/${config.DB}`);
+        sql.connect(`mssql://${config.User}:${config.PWD}@${config.IP}/${config.DB}`);
     }
     login(clID, pass, cb){
         let userInfo = {};
 
-        this.conn.then(()=>{
-
-            sql.query`select code,flag from sys_user where userid=${clID} and pwd=${this.encrypt(pass)}`
-            .then(ret=>{
+        sql.query`select code,flag from sys_user where userid=${clID} and pwd=${this.encrypt(pass)}`)
+           .then(ret=>{
                 userInfo.user = ret[0].code;
                 userInfo.flag = ret[0].flag;
                 userInfo.acl = {};
                 return sql.query`select distinct b.port from A_tblopentld a left join R_domain b on a.tld=b.tld where a.acode=${userInfo.user}`;
             })
-            .then(ports=>{
+           .then(ports=>{
                 userInfo.acl.port = ports.map(p=>p.port);
-                let op = ['CreateDomain','DeleteDomain','RenewDomain','TransferDomain','RestoreDomain'];
-                    op.map(o=>userInfo.acl[o]=[]);
-              
-                if(userInfo.flag != 'S'){
-                    sql.query`select tld from A_tblopentld where acode=${userInfo.user} and CreateDomain=0`
-                    .then(tld=>{
-                        userInfo.acl.CreateDomain = tld.map(t=>t.tld);
-                        return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and DeleteDomain=0`
-                    })
-                    .then(tld=>{
-                        userInfo.acl.DeleteDomain = tld.map(t=>t.tld);
-                        return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and RenewDomain=0`
-                    })
-                    .then(tld=>{
-                        userInfo.acl.RenewDomain = tld.map(t=>t.tld);
-                        return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and TransferDomain=0`
-                    })
-                    .then(tld=>{
-                        userInfo.acl.TransferDomain = tld.map(t=>t.tld);
-                        return sql.query`select tld from A_tblopentld where acode=${userInfo.user} and RestoreDomain=0`
-                    })
-                    .then(tld=>{
-                        userInfo.acl.RestoreDomain = tld.map(t=>t.tld);
-                        cb(null, userInfo);
-                        this.emit("data", userInfo);
-                    });
-                }else{
+
+                if(userInfo.flag != 'S') fillAcl(userInfo, cb);
+                else {
+                    userInfo.acl.CreateDomain = [];
+                    userInfo.acl.DeleteDomain = [];
+                    userInfo.acl.RenewDomain = [];
+                    userInfo.acl.TransferDomain = [];
+                    userInfo.acl.RestoreDomain = [];
                     cb(null, userInfo);
-                    this.emit("data", userInfo);
                 }
-            }).catch(err=>{ cb(err, null)});
-        }).catch(err=>{ cb(err, null)});
+            })
+           .catch(cb);
     }
     passwd(clID, pass, cb){
-        this.conn.then(()=>{
-            sql.query`update sys_user set pwd=${this.encrypt(pass)} where userid=${clID}`
-            .then(ret=>{
-                cb(null, !ret);
-                this.emit('data', !ret);
-            }).catch(err=>{
-                cb(err, null);
-                // this.emit('data',false);
-            });
-        }).catch(err=>{cb(err, null)});
+        sql.query`update sys_user set pwd=${this.encrypt(pass)} where userid=${clID}`)
+           .then(ret=>cb(null, !ret))
+           .catch(cb);
     }
     cando(user, op, domain, period, cb){
         if (op == "create" && period < 2) {
@@ -81,12 +79,11 @@ class Bill extends Nodeway{
         let gcode = '';
         let curtime = util.getFullDate();
 
-        this.conn.then(()=>{
             let len = this.getdomainlen(domain);
             let tld = domain.split(/\./)[1];
 
-            sql.query`select gcode from A_tblopentld where acode=${user} and tld=${tld}`
-            .then(ret=>{
+        sql.query`select gcode from A_tblopentld where acode=${acode} and tld=${tld}`
+           .then(ret=>{
                 if(!ret.length){
                     cb(new Error('系统中无此代理商账户或未开通此TLD'), null);
                 }else{
@@ -94,15 +91,15 @@ class Bill extends Nodeway{
                 }
                 return sql.query`select lenflag from R_domainlen where tld=${tld} and (minlen is null or minlen<=${len}) and (maxlen is null or maxlen>=${len})`
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(ret.length) lenflag = ret[0].lenflag;
                 return sql.query`select id  from sys_dictionary where flag=1 and ennm=${optype} and mark='1' `
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(ret.length) flag = '1';
                 return sql.query`select price from R_tblprice where gid in (select gid from G_tblopentld where gcode=${gcode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(!ret.length){
                     cb(new Error('注册商级别或价格未登记'),null);
                 }else{
@@ -110,12 +107,12 @@ class Bill extends Nodeway{
                 }
                 return sql.query`select price from R_tblprice where gid in (select gid from G_tblopentld where acode=${acode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(!ret.length){
                     cb(new Error('代理商级别或价格未登记'),null);
                 }else{
                     aprice = ret[0].price;
-                }             
+                }
 
                 if(op != "autorenew"){
                     if(flag == "0"){
@@ -128,25 +125,23 @@ class Bill extends Nodeway{
                 }
                 return sql.query`select balance from G_tblgroup where gcode=${gcode} and balance+${gfee}>=0`
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(!ret.length){
                     cb(new Error('注册商余额不足'), null);
                 }
                 return sql.query`select balance from G_tblgroup where acode=${acode} and balance+${fee}>=0`
             })
-            .then(ret=>{
+           .then(ret=>{
                 if(!ret.length){
                     cb(new Error('代理商余额不足'), null);
                 }
             })
-            .then(()=>{
+           .then(()=>{
                 cb(null, aprice);
-                this.emit('data', aprice);
             })
-            .catch(err=>{cb(err, null)});
-        }).catch(err=>{cb(err, null)});
+           .catch(cb);
     }
-    
+
     done(usr,op,domain,appID,registrant,opDate,price,period,exDate,oldID,uniID){
 
     }
@@ -166,10 +161,8 @@ class Bill extends Nodeway{
             .then(name=>{
                 name.length && (WhoisEx.name = name[0].aname);
                 cb(null, WhoisEx);
-                this.emit('data', WhoisEx);
             }).catch(err=>{
                 cb(err, null);
-                // this.emit('data', null);
                 // sendEmail(ex.message, "getAgent");
             })
         }).catch(err=>{ cb(err, null) });
@@ -190,5 +183,4 @@ class Bill extends Nodeway{
     }
 }
 
-                       
 module.exports = Bill;
