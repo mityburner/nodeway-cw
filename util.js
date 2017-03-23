@@ -1,18 +1,19 @@
 var mailer = require('nodemailer');
+var config = require('utils.json');
 
 function mailto(message, cb) {
     var transporter = mailer.createTransport({
         host: 'smtp.qiye.163.com',
         port: 25,
         auth: {
-            user: '',
-            pass: ''
+            user: config.user,
+            pass: config.pass
         },
         authMethod: 'PLAIN'
     });
     var mailOptions = {
-        from: '',
-        to: '',
+        from: config.from,
+        to: config.to,
         subject: message + ' ✔',
         text: message + ' ✔',
         html: '<b>' + message + ' ✔</b>'
