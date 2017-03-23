@@ -1,18 +1,17 @@
 {
   "name": "nodeway-cw",
   "version": "0.0.1",
-  "description": "a microservice",
+  "description": "a microservices",
   "main": "./Bill.js",
   "keywords": [
     "nodejs",
     "nodeway",
-    "microservice"
+    "microservices"
   ],
   "license": "MIT",
   "dependencies": {
     "mssql":"*",
     "crypto": "*",
-    "nodemailer":"*",
-    "nodeway": "1.3.4"
+    "nodemailer":"*"
   }
 }
