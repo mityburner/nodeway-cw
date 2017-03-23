@@ -64,9 +64,16 @@ class Bill extends Nodeway{
 		    .catch(err=>console.log(err));
 		}).catch(err=>console.log(err));
 	}
-	passwd(clID, pass){
-        sql.query`update sys_user set pwd=${this.encrypt(pass)} where userid=${clID}`
-        .then(ret=>console.log(ret));
+	passwd(clID, pass, cb){
+	    this.conn.then(()=>{
+            sql.query`update sys_user set pwd=${this.encrypt(pass)} where userid=${clID}`
+            .then(ret=>{
+                cb(null, !ret);
+                this.emit('data', !ret);
+            }).catch(err=>{
+                cb(err, null);
+            });
+        });
 	}
 	cando(user, op, domain, period){
         
