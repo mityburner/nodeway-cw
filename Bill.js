@@ -99,12 +99,11 @@ function handle_transaction(params, cb){
         trans.rollback();
     });
 }
-
-function editParams(params){
-    let opLower = opLower.op;
-    switch (opLower){
+function _editParams(params, cb){
+    switch (params.op){
         case "transferout"://transferout不用询组价，不扣费
             params.optypeold = "transfer";
+            cb(null, params);
             break;
         case "delete"://转换op 并得到原组退费价格
             query`select eppop,gprice,gfee,fee from R_Eppryde where uniID=${params.oldID}`
@@ -125,7 +124,8 @@ function editParams(params){
                         params.optype = "au-deletedrawback";//oldID中的op为autorenew，表示自动续费后在自动续费期删除了域名退费
                         break;
                 }
-            });                                        
+                cb(null, params);
+            }).catch(cb);                                        
             break;
         default:
             query`select lenflag from R_domainlen where  tld=${params.tld} and (minlen is null or minlen<=${params.len} ) and (maxlen is null or maxlen>=${params.len})`
@@ -142,10 +142,23 @@ function editParams(params){
                 params.gprice = ret[0].price;
                 params.gfee = gprice * period * (-1);
                 params.fee = price * period * (-1);
-            });
-            break;
+                cb(null, params);
+            }).catch(cb);
     }
-    return params;
+}
+function editParams(params,cb){
+    if(!cb){
+        return new Promise((resolve,reject)=>{
+            _editParams(params, (err, data)=>{
+                if(err) 
+                    reject(err)
+                else
+                    resolve(data);
+            });
+        });
+    }else{
+        _editParams(params,cb);
+    }
 }
 
 
