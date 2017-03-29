@@ -197,7 +197,7 @@ class Bill extends Nodeway{
         .catch(cb);
     }
     cando(user, op, domain, period, cb){
-        if (op == "create" && period < 2) {
+      if (op == "create" && period < 2) {
             cb(new Error("最少注册两年"));
             return;
         }
@@ -210,29 +210,35 @@ class Bill extends Nodeway{
         let gcode = '';
         let curtime = util.getFullDate();
         let len = getdomainlen(domain);
-        let tld = domain.split('.')[1];
+        let tld = domain.split(/\./)[1];
 
         query`select gcode from A_tblopentld where acode=${acode} and tld=${tld}`
         .then(ret=>{
-            if(!ret.length) throw new Error('系统中无此代理商账户或未开通此TLD'); // 用回调函数cb是不行的，因为后面的then还会继续执行。必须用throw抛错误，才能终止后面的then执行！！！
+            if(!ret.length){
+                throw new Error('系统中无此代理商账户或未开通此TLD');
+            }
             gcode = ret[0].gcode;
             return query`select lenflag from R_domainlen where tld=${tld} and (minlen is null or minlen<=${len}) and (maxlen is null or maxlen>=${len})`
         })
         .then(ret=>{
             if(ret.length) lenflag = ret[0].lenflag;
-            return query`select id  from sys_dictionary where flag=1 and ennm=${optype} and mark='1'`
+            return query`select id  from sys_dictionary where flag=1 and ennm=${optype} and mark='1' `
         })
         .then(ret=>{
             if(ret.length) flag = '1';
             return query`select price from R_tblprice where gid in (select gid from G_tblopentld where gcode=${gcode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
         })
         .then(ret=>{
-            if(!ret.length) throw new Error('注册商级别或价格未登记');
+            if(!ret.length){
+                throw new Error('注册商级别或价格未登记');
+            }
             gprice = ret[0].price;
             return query`select price from R_tblprice where gid in (select gid from G_tblopentld where acode=${acode} and tld=${tld}) and tld=${tld} and (years='' or years=${years}) and lenflag=${lenflag} and optype=${optype} and startdatebj<=${curtime} and (enddatebj is null or enddatebj>${curtime})`
         })
         .then(ret=>{
-            if(!ret.length) throw new Error('代理商级别或价格未登记');
+            if(!ret.length){
+                throw new Error('代理商级别或价格未登记');
+            }
             aprice = ret[0].price;
 
             if(op != "autorenew"){
@@ -243,17 +249,21 @@ class Bill extends Nodeway{
                     gfee = gprice *  (-1);
                     fee = aprice *  (-1);
                 }
+                query`select balance from G_tblgroup where gcode=${gcode} and balance+${gfee}>=0`
+                .then(ret=>{
+                    if(!ret.length){
+                        throw new Error('注册商余额不足');
+                    }
+                    return query`select balance from G_tblgroup where acode=${acode} and balance+${fee}>=0`
+                })
+                .then(ret=>{
+                    if(!ret.length){
+                        throw new Error('代理商余额不足');
+                    }
+                }).catch(cb);
             }
-            return query`select balance from G_tblgroup where gcode=${gcode} and balance+${gfee}>=0`
         })
-        .then(ret=>{
-            if(!ret.length) throw new Error('注册商余额不足');
-            return query`select balance from G_tblgroup where acode=${acode} and balance+${fee}>=0`
-        })
-        .then(ret=>{
-            if(!ret.length) throw new Error('代理商余额不足');
-            cb(null, aprice);
-        })
+        .then(()=>{cb(null, aprice)})
         .catch(cb);
     }
     registry(id, cb) {
