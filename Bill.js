@@ -295,29 +295,28 @@ class Bill extends Nodeway{
         //首先检查此流水是否已经处理过了
         query`select uniID from R_Eppryde where uniID=${params.uniID}`
         .then(ret=>{
-            if(ret.length){
+           if(ret.length){
                 cb(null, true);
-                //stop here.
-            }
-            return query`select gcode from A_tblopentld where acode=${params.acode} and tld=${params.tld}`;
-        })        
-        .then(ret=>{
-            if(!ret.length){
-                throw new Error('该代理商未开通此TLD:'+params.tld);
-            }
-            params.gcode = ret[0].gcode;
-
-            if (period == 0){
-                if (opLower == "transfer" || opLower == "restore" || opLower == "transferin" || opLower == "transferout"){
-                    params.diffyears = 1;
-                }
             }else{
-                params = editParams(params);//ToDo: handl error throwed
-                // handle transaction
-                handle_transaction(params, cb);
+                query`select gcode from A_tblopentld where acode=${params.acode} and tld=${params.tld}`
+                .then(ret=>{
+                    if(!ret.length){
+                        throw new Error('该代理商未开通此TLD:'+params.tld);
+                    }
+                    params.gcode = ret[0].gcode;
+
+                    if (period == 0){
+                        if (opLower == "transfer" || opLower == "restore" || opLower == "transferin" || opLower == "transferout"){
+                            params.diffyears = 1;
+                        }
+                        handle_transaction(params, cb);
+                    }else{
+                        // handle transaction
+                        editParams(params).then(()=>handle_transaction(params, cb)).catch(cb);
+                    }
+                }).catch(cb);
             }
-        })
-        .catch(cb);
+        }).catch(cb);
     }
     getAgent(domain, cb){
         let len = getdomainlen(domain);
@@ -334,7 +333,7 @@ class Bill extends Nodeway{
             cb(null, WhoisEx);
         }).catch(err=>{
             cb(err);
-            util.mailto("getAgent "+err.message, () => {});
+            //util.mailto("getAgent "+err.message, () => {});
         });
     }
 }
