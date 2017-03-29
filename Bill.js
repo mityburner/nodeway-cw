@@ -171,6 +171,9 @@ class Bill extends Nodeway{
 
         query`select code,flag from sys_user where userid=${clID} and pwd=${encrypt(pass)}`
         .then(ret=>{
+            if(!ret.length){
+                throw new Error("用户不存在或用户密码错误");
+            }
             userInfo.user = ret[0].code;
             userInfo.flag = ret[0].flag;
             userInfo.acl = {};
