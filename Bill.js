@@ -42,7 +42,7 @@ function fillAcl(userInfo, cb) {
 
 function getdomainlen(domain){
     let len = 0;
-    let s = domain.substring(0, domain.IndexOf("."));
+    let s = domain.substring(0, domain.indexOf("."));
     for (let i = 0; i < s.Length; i++){
         if (s.charAt(i) <= 0xff) len += 1;
         else len += 2;
@@ -82,7 +82,7 @@ function handle_transaction(params, cb){
             }
         }
     })
-    .then((){
+    .then(()=>{
         if(params.tld != "hdaotest"){
             return request.query`update  A_tblagent set balance=balance+${params.fee}  where acode=${params.acode}`
                           .then(()=>request.query`update  G_tblgroup set balance=balance+${params.gfee}  where gcode=${params.gcode}`);
