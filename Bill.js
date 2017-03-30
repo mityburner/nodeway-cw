@@ -212,7 +212,7 @@ class Bill extends Nodeway{
         let lenflag = ''; //词性，目前只有“商城”才有值；否则就是空；
         let gcode = '';
         let acode = user;
-        let curtime = util.getFullDate();
+        let curtime = new Date();
         let len = getdomainlen(domain);
         let tld = domain.split(/\./)[1];
 
@@ -281,7 +281,7 @@ class Bill extends Nodeway{
             registrant: registrant,
             period: period,
             exDate: exDate,
-            curtime: getFullDate(), //当前系统时间
+            curtime: new Date(), //当前系统时间
             uniID: this.cookie + '/' + uniID,           //uniID:本次流水的唯一值
             oldID: this.cookie + '/' + oldID,           // oldID:如为空，则扣费;如不为空，对应扣款时流水uniID
             acode: user,            //user: login时支付中心返回的用户ID
