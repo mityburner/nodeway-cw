@@ -211,6 +211,7 @@ class Bill extends Nodeway{
         let fee = 0;
         let lenflag = ''; //词性，目前只有“商城”才有值；否则就是空；
         let gcode = '';
+        let acode = user;
         let curtime = util.getFullDate();
         let len = getdomainlen(domain);
         let tld = domain.split(/\./)[1];
