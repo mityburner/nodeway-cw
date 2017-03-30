@@ -1,5 +1,5 @@
 var mailer = require('nodemailer');
-var config = require('utils.json');
+var config = require('./util.json');
 
 function mailto(message, cb) {
     var transporter = mailer.createTransport({
