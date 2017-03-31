@@ -25,16 +25,9 @@ function getFullDate() {
     var now = new Date(),
         year = now.getFullYear(),
         month = now.getMonth()+1,
-        date = now.getDate(),
-        hh = now.getHours(),
-        mm = now.getMinutes(),
-        ss = now.getSeconds();
-    return  (month < 10 ? '0'+month : month)
-            + '/' + (date < 10 ? '0'+date : date)
-            + '/' + year
-            + ' ' + (hh < 10 ? '0'+hh : hh)
-            + ':' + (mm < 10 ? '0'+mm : mm)
-            + ':' + (ss < 10 ? '0'+ss : ss);
+        date = now.getDate();
+    return  year + '-' + (month < 10 ? '0'+month : month)
+                 + '-' + (date < 10 ? '0'+date : date);
 }
 
 module.exports = {mailto, getFullDate};
