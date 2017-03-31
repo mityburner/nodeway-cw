@@ -15,13 +15,6 @@ function query() {
     return new sql.Connection(config).connect().then(conn => conn.query.apply(conn, arguments));
 }
 
-function nonQuery() {
-    return new sql.Connection(config).connect().then(conn => {
-        let req = new sql.Request(conn);
-        return req.query.apply(req, arguments).then(()=>req);
-    });
-}
-
 function fillAcl(userInfo, cb) {
     query`select tld from A_tblopentld where acode=${userInfo.user} and CreateDomain=0`
     .then(tld=>{
@@ -202,8 +195,8 @@ class Bill extends Nodeway{
         .catch(cb);
     }
     passwd(clID, pass, cb){
-        nonQuery`update sys_user set pwd=${encrypt(pass)} where userid=${clID}`
-        .then(ret=>cb(null, ret.rowsAffected))
+        query`update sys_user set pwd=${encrypt(pass)} where userid=${clID}`
+        .then(ret=>cb(null, ret>0))
         .catch(cb);
     }
     cando(user, op, domain, period, cb){
